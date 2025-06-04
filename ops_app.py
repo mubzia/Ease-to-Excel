@@ -22,14 +22,14 @@ def drop_box(uploaded_files):
     return None
 
 # concat Files Button Logic
-def concat_button(uploaded_files, selected_sheet):
+def concat_button(uploaded_files, selected_sheet,header_row):
     if st.button('Concat Files') and uploaded_files:
         concat_df = pd.DataFrame()
         for file in uploaded_files:
             try:
                 if file.name.endswith('.xlsx'):
                     if selected_sheet:
-                        df = pd.read_excel(file, sheet_name=selected_sheet)
+                        df = pd.read_excel(file, sheet_name=selected_sheet,header=header_row)
                     else:
                         st.warning(f'Skipping Excel file {file.name} due to no selected sheet.')
                         continue
@@ -81,19 +81,31 @@ def drop_box_sheet(uploaded_data):
         return selected_sheet
     return None
 
-def drop_box_col(uploaded_data, selected_sheet):
+def drop_box_col(uploaded_data, selected_sheet,header_row):
     if uploaded_data:
         if uploaded_data.name.endswith('.xlsx'):
-            df = pd.read_excel(uploaded_data, sheet_name=selected_sheet)
+            df = pd.read_excel(uploaded_data, sheet_name=selected_sheet,header=header_row)
             cols = df.columns
         elif uploaded_data.name.endswith('.csv'):
-            df  = pd.read_csv(uploaded_data)
+            df  = pd.read_csv(uploaded_data, header=header_row)
             cols =df.columns
         else:
             st.error('Unsupported file format')
 
         selected_col = st.selectbox('Select column to split', cols)
         return selected_col, df
+
+def select_header():
+    header_option = st.selectbox('Select the header row',options=['1st row', '2nd row', '3rd row'])
+    if header_option == '1st row':
+        header_row = 0 
+    elif header_option == '2nd row':
+        header_row = 1
+    else:
+        header_row = 2
+
+    return header_row
+
     
 def split_file_by_column(df, selected_col):
     zip_buffer = BytesIO()
@@ -126,13 +138,15 @@ def main():
         with col1:
             st.markdown('## Excel/CSV File Concatenator')
             uploaded_files = upload_file()
-            selected_sheet = None
+            # selected_sheet = None
+            # header_row = None
             if uploaded_files:
                 # Only show sheet dropdown if any Excel file is uploaded
                 if any(file.name.endswith('.xlsx') for file in uploaded_files):
                     selected_sheet = drop_box(uploaded_files)
+                header_row = select_header()
                 # Pass selected_sheet (can be None for CSV-only files)
-                concat_df = concat_button(uploaded_files, selected_sheet)
+                concat_df = concat_button(uploaded_files, selected_sheet,header_row)
                 download_merg(concat_df)
 
         with col3:
@@ -157,7 +171,9 @@ def main():
             if uploaded_data:
                 if uploaded_data.name.endswith('.xlsx'):
                     selected_sheet = drop_box_sheet(uploaded_data)
-                selected_col, df = drop_box_col(uploaded_data, selected_sheet)
+                header_row = select_header()
+                selected_col, df = drop_box_col(uploaded_data, selected_sheet,header_row)
+
                 if st.button("Split and Download"):
                     zip_file = split_file_by_column(df, selected_col)
                     st.success("Files split successfully!")
